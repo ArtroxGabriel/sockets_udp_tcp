@@ -47,3 +47,18 @@ tasks:
     desc: Run CalcClientTCP (accepts CLI flags e.g. -- --addr 127.0.0.1:8082)
     cmds:
       - rtk go run ./cmd/client_tcp {{.CLI_ARGS}}
+
+  proto:gen:
+    desc: Generate Go protobuf code from proto/calc.proto
+    cmds:
+      - rtk protoc --go_out=. --go_opt=module=sockets_udp_tcp proto/calc.proto
+
+  run:server:proto:
+    desc: Run CalcServerProto (accepts CLI flags e.g. -- --port 8083)
+    cmds:
+      - rtk go run ./cmd/server_proto {{.CLI_ARGS}}
+
+  run:client:proto:
+    desc: Run CalcClientProto (accepts CLI flags e.g. -- --addr 127.0.0.1:8083)
+    cmds:
+      - rtk go run ./cmd/client_proto {{.CLI_ARGS}}
