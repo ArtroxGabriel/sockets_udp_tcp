@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"sockets_udp_tcp/pkg/calc"
@@ -70,10 +71,12 @@ func shouldDrop(lossRate float64) bool {
 }
 
 func processPacket(conn *net.UDPConn, clientAddr *net.UDPAddr, data []byte, lossRate float64) {
-	raw := string(data)
+	raw := strings.TrimSpace(string(data))
+	log.Printf("[RECV] from %s: %s", clientAddr, raw)
+
 	req, err := protocol.ParseRequest(raw)
 	if err != nil {
-		log.Printf("malformed request from %s: %v", clientAddr, err)
+		log.Printf("[MALFORMED] from %s: %v", clientAddr, err)
 		return
 	}
 
@@ -83,6 +86,7 @@ func processPacket(conn *net.UDPConn, clientAddr *net.UDPAddr, data []byte, loss
 	}
 
 	respStr := executeCalculation(req)
+	log.Printf("[SENT] to %s: %s", clientAddr, respStr)
 	if _, err := conn.WriteToUDP([]byte(respStr), clientAddr); err != nil {
 		log.Printf("error replying to %s: %v", clientAddr, err)
 	}

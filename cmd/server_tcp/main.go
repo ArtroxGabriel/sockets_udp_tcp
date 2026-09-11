@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"sockets_udp_tcp/pkg/calc"
@@ -75,7 +76,11 @@ func handleConnection(conn net.Conn) {
 			break
 		}
 
-		resp := processLine(line)
+		cleanLine := strings.TrimSpace(line)
+		log.Printf("[RECV] from %s: %s", remoteAddr, cleanLine)
+
+		resp := processLine(cleanLine)
+		log.Printf("[SENT] to %s: %s", remoteAddr, resp)
 		if _, writeErr := conn.Write([]byte(resp + "\n")); writeErr != nil {
 			log.Printf("write error to %s: %v", remoteAddr, writeErr)
 			break

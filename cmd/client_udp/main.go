@@ -119,6 +119,10 @@ func sendWithRetry(conn net.Conn, req protocol.Request, timeout time.Duration, m
 			}
 		}
 
+		if !silent {
+			log.Printf("[SEND] req: %s", string(payload))
+		}
+
 		if _, err := conn.Write(payload); err != nil {
 			if !silent {
 				log.Printf("write error on seq=%d: %v", req.Seq, err)
@@ -129,7 +133,7 @@ func sendWithRetry(conn net.Conn, req protocol.Request, timeout time.Duration, m
 		if err == nil {
 			rtt := time.Since(startReqTime)
 			if !silent {
-				log.Printf("[SUCCESS] seq=%d -> %s (RTT: %v)", req.Seq, respStr, rtt)
+				log.Printf("[RECV] seq=%d -> %s (RTT: %v)", req.Seq, respStr, rtt)
 			}
 			return RequestResult{
 				Seq:             req.Seq,

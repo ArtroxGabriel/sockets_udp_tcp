@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 tasks:
   default:
@@ -10,77 +10,77 @@ tasks:
   test:
     desc: Run all Go unit tests with coverage
     cmds:
-      - rtk go test -v -cover ./...
+      - go test -v -cover ./...
 
   fmt:
     desc: Format Go source code
     cmds:
-      - rtk go fmt ./...
+      - go fmt ./...
 
   build:
     desc: Build all Go binaries
     cmds:
       - mkdir -p bin
-      - rtk go build -o bin/server_udp ./cmd/server_udp
-      - rtk go build -o bin/client_udp ./cmd/client_udp
-      - rtk go build -o bin/server_tcp ./cmd/server_tcp
-      - rtk go build -o bin/client_tcp ./cmd/client_tcp
-      - rtk go build -o bin/server_proto ./cmd/server_proto
-      - rtk go build -o bin/client_proto ./cmd/client_proto
-      - rtk go build -o bin/experiment ./cmd/experiment
+      - go build -o bin/server_udp ./cmd/server_udp
+      - go build -o bin/client_udp ./cmd/client_udp
+      - go build -o bin/server_tcp ./cmd/server_tcp
+      - go build -o bin/client_tcp ./cmd/client_tcp
+      - go build -o bin/server_proto ./cmd/server_proto
+      - go build -o bin/client_proto ./cmd/client_proto
+      - go build -o bin/experiment ./cmd/experiment
 
   run:server:udp:
     desc: Run CalcServerUDP (accepts CLI flags e.g. -- --loss-rate 0.1)
     cmds:
-      - rtk go run ./cmd/server_udp {{.CLI_ARGS}}
+      - go run ./cmd/server_udp {{.CLI_ARGS}}
 
   run:client:udp:
     desc: Run CalcClientUDP (accepts CLI flags e.g. -- --addr 127.0.0.1:8081)
     cmds:
-      - rtk go run ./cmd/client_udp {{.CLI_ARGS}}
+      - go run ./cmd/client_udp {{.CLI_ARGS}}
 
   run:server:tcp:
     desc: Run CalcServerTCP (accepts CLI flags e.g. -- --port 8082)
     cmds:
-      - rtk go run ./cmd/server_tcp {{.CLI_ARGS}}
+      - go run ./cmd/server_tcp {{.CLI_ARGS}}
 
   run:client:tcp:
     desc: Run CalcClientTCP (accepts CLI flags e.g. -- --addr 127.0.0.1:8082)
     cmds:
-      - rtk go run ./cmd/client_tcp {{.CLI_ARGS}}
+      - go run ./cmd/client_tcp {{.CLI_ARGS}}
 
   proto:gen:
     desc: Generate Go protobuf code from proto/calc.proto
     cmds:
-      - rtk protoc --go_out=. --go_opt=module=sockets_udp_tcp proto/calc.proto
+      - protoc --go_out=. --go_opt=module=sockets_udp_tcp proto/calc.proto
 
   run:server:proto:
     desc: Run CalcServerProto (accepts CLI flags e.g. -- --port 8083)
     cmds:
-      - rtk go run ./cmd/server_proto {{.CLI_ARGS}}
+      - go run ./cmd/server_proto {{.CLI_ARGS}}
 
   run:client:proto:
     desc: Run CalcClientProto (accepts CLI flags e.g. -- --addr 127.0.0.1:8083)
     cmds:
-      - rtk go run ./cmd/client_proto {{.CLI_ARGS}}
+      - go run ./cmd/client_proto {{.CLI_ARGS}}
 
   run:bun:udp:
     desc: Run Bun UDP Client against CalcServerUDP
     cmds:
-      - rtk bun run bun/client_udp.ts
+      - bun run bun/client_udp.ts
 
   run:bun:tcp:
     desc: Run Bun TCP Client against CalcServerTCP
     cmds:
-      - rtk bun run bun/client_tcp.ts
+      - bun run bun/client_tcp.ts
 
   run:bun:proto:
     desc: Run Bun Protobuf Client against CalcServerProto
     cmds:
-      - rtk bun run bun/client_proto.ts
+      - bun run bun/client_proto.ts
 
   experiment:
     desc: Build binaries and run the full Part 3 & 4 comparative experiments suite
     deps: [build]
     cmds:
-      - rtk go run ./cmd/experiment
+      - go run ./cmd/experiment

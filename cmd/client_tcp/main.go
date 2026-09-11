@@ -100,8 +100,12 @@ func executeRequests(conn net.Conn, reqs []protocol.Request, silent bool) ([]Req
 
 	for i, req := range reqs {
 		line := protocol.FormatRequest(req) + "\n"
-		start := time.Now()
+		cleanReq := strings.TrimSpace(line)
+		if !silent {
+			log.Printf("[SEND] %s", cleanReq)
+		}
 
+		start := time.Now()
 		if _, err := conn.Write([]byte(line)); err != nil {
 			return nil, fmt.Errorf("failed to write seq %d: %w", req.Seq, err)
 		}
@@ -114,7 +118,7 @@ func executeRequests(conn net.Conn, reqs []protocol.Request, silent bool) ([]Req
 
 		cleanResp := strings.TrimSpace(respLine)
 		if !silent {
-			log.Printf("[SUCCESS] seq=%d -> %s (RTT: %v, Wire: %dB/%dB)",
+			log.Printf("[RECV] seq=%d -> %s (RTT: %v, Wire: %dB/%dB)",
 				req.Seq, cleanResp, rtt, len(line), len(respLine))
 		}
 
