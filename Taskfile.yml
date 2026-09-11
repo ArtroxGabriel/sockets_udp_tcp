@@ -1,0 +1,29 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Run all tests
+    cmds:
+      - task: test
+
+  test:
+    desc: Run all Go unit tests with coverage
+    cmds:
+      - rtk go test -v -cover ./...
+
+  fmt:
+    desc: Format Go source code
+    cmds:
+      - rtk go fmt ./...
+
+  build:
+    desc: Build all Go binaries
+    cmds:
+      - mkdir -p bin
+      - rtk go build -o bin/server_udp ./cmd/server_udp
+      - rtk go build -o bin/client_udp ./cmd/client_udp
+      - rtk go build -o bin/server_tcp ./cmd/server_tcp
+      - rtk go build -o bin/client_tcp ./cmd/client_tcp
+      - rtk go build -o bin/server_proto ./cmd/server_proto
+      - rtk go build -o bin/client_proto ./cmd/client_proto
+      - rtk go build -o bin/experiment ./cmd/experiment
