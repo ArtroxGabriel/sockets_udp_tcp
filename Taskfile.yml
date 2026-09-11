@@ -62,3 +62,18 @@ tasks:
     desc: Run CalcClientProto (accepts CLI flags e.g. -- --addr 127.0.0.1:8083)
     cmds:
       - rtk go run ./cmd/client_proto {{.CLI_ARGS}}
+
+  run:bun:udp:
+    desc: Run Bun UDP Client against CalcServerUDP
+    cmds:
+      - rtk bun run bun/client_udp.ts
+
+  run:bun:tcp:
+    desc: Run Bun TCP Client against CalcServerTCP
+    cmds:
+      - rtk bun run bun/client_tcp.ts
+
+  run:bun:proto:
+    desc: Run Bun Protobuf Client against CalcServerProto
+    cmds:
+      - rtk bun run bun/client_proto.ts
