@@ -33,3 +33,14 @@ func Compute(op1 float64, op string, op2 float64) (float64, error) {
 		return 0, fmt.Errorf("%w: unsupported operator %q", ErrInvalidOperator, op)
 	}
 }
+
+// ErrorMessage converts an internal calculator error into a standardized wire error message.
+func ErrorMessage(err error) string {
+	if errors.Is(err, ErrDivisionByZero) {
+		return "divisão por zero"
+	}
+	if errors.Is(err, ErrInvalidOperator) {
+		return "operação inválida"
+	}
+	return err.Error()
+}

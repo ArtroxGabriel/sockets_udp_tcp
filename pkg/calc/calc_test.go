@@ -118,3 +118,17 @@ func TestComputeInvalidOperator(t *testing.T) {
 		t.Errorf("expected ErrInvalidOperator, got %v", err)
 	}
 }
+
+func TestErrorMessage(t *testing.T) {
+	// Arrange & Act & Assert
+	if msg := ErrorMessage(ErrDivisionByZero); msg != "divisão por zero" {
+		t.Errorf("expected 'divisão por zero', got %q", msg)
+	}
+	if msg := ErrorMessage(ErrInvalidOperator); msg != "operação inválida" {
+		t.Errorf("expected 'operação inválida', got %q", msg)
+	}
+	customErr := errors.New("custom failure")
+	if msg := ErrorMessage(customErr); msg != "custom failure" {
+		t.Errorf("expected 'custom failure', got %q", msg)
+	}
+}

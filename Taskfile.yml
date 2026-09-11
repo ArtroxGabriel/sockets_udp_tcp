@@ -27,3 +27,13 @@ tasks:
       - rtk go build -o bin/server_proto ./cmd/server_proto
       - rtk go build -o bin/client_proto ./cmd/client_proto
       - rtk go build -o bin/experiment ./cmd/experiment
+
+  run:server:udp:
+    desc: Run CalcServerUDP (accepts CLI flags e.g. -- --loss-rate 0.1)
+    cmds:
+      - rtk go run ./cmd/server_udp {{.CLI_ARGS}}
+
+  run:client:udp:
+    desc: Run CalcClientUDP (accepts CLI flags e.g. -- --addr 127.0.0.1:8081)
+    cmds:
+      - rtk go run ./cmd/client_udp {{.CLI_ARGS}}
