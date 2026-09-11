@@ -37,3 +37,13 @@ tasks:
     desc: Run CalcClientUDP (accepts CLI flags e.g. -- --addr 127.0.0.1:8081)
     cmds:
       - rtk go run ./cmd/client_udp {{.CLI_ARGS}}
+
+  run:server:tcp:
+    desc: Run CalcServerTCP (accepts CLI flags e.g. -- --port 8082)
+    cmds:
+      - rtk go run ./cmd/server_tcp {{.CLI_ARGS}}
+
+  run:client:tcp:
+    desc: Run CalcClientTCP (accepts CLI flags e.g. -- --addr 127.0.0.1:8082)
+    cmds:
+      - rtk go run ./cmd/client_tcp {{.CLI_ARGS}}
