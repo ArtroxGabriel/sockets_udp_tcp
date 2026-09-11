@@ -77,3 +77,9 @@ tasks:
     desc: Run Bun Protobuf Client against CalcServerProto
     cmds:
       - rtk bun run bun/client_proto.ts
+
+  experiment:
+    desc: Build binaries and run the full Part 3 & 4 comparative experiments suite
+    deps: [build]
+    cmds:
+      - rtk go run ./cmd/experiment

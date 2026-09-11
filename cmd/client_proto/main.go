@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -30,18 +31,22 @@ type ProtoMetric struct {
 
 // ClientMetrics aggregates summary statistics.
 type ClientMetrics struct {
-	TotalTime   time.Duration
-	Delivered   int
-	Lost        int
-	AvgRTT      time.Duration
-	MaxRTT      time.Duration
-	AvgSentSize float64
-	AvgRecvSize float64
+	TotalTime       time.Duration `json:"-"`
+	TotalDurationMs float64       `json:"totalDurationMs"`
+	Delivered       int           `json:"delivered"`
+	Lost            int           `json:"lost"`
+	AvgRTT          time.Duration `json:"-"`
+	AvgRTTMs        float64       `json:"avgRttMs"`
+	MaxRTT          time.Duration `json:"-"`
+	MaxRTTMs        float64       `json:"maxRttMs"`
+	AvgSentSize     float64       `json:"avgSentBytes"`
+	AvgRecvSize     float64       `json:"avgRecvBytes"`
 }
 
 func main() {
 	addr := flag.String("addr", defaultServerAddr, "Protobuf TCP server address (host:port)")
 	n := flag.Int("n", defaultRequestNum, "Number of requests to send")
+	jsonOutput := flag.Bool("json", false, "Output metrics in JSON format")
 	flag.Parse()
 
 	conn, err := net.Dial("tcp", *addr)
@@ -50,18 +55,24 @@ func main() {
 	}
 	defer conn.Close()
 
-	log.Printf("CalcClientProto connected to %s | N=%d", *addr, *n)
+	if !*jsonOutput {
+		log.Printf("CalcClientProto connected to %s | N=%d", *addr, *n)
+	}
 	requests := generateTestRequests(*n)
 
 	startTime := time.Now()
-	metrics, err := executeRequests(conn, requests)
+	metrics, err := executeRequests(conn, requests, *jsonOutput)
 	if err != nil {
 		log.Fatalf("error executing requests: %v", err)
 	}
 	totalDuration := time.Since(startTime)
 
 	summary := calculateMetrics(metrics, totalDuration)
-	printSummary(summary)
+	if *jsonOutput {
+		printJSONSummary(summary)
+	} else {
+		printSummary(summary)
+	}
 
 	if summary.Lost > 0 {
 		os.Exit(1)
@@ -95,7 +106,7 @@ func generateTestRequests(n int) []*pb.CalcRequest {
 	return requests
 }
 
-func executeRequests(conn net.Conn, reqs []*pb.CalcRequest) ([]ProtoMetric, error) {
+func executeRequests(conn net.Conn, reqs []*pb.CalcRequest, silent bool) ([]ProtoMetric, error) {
 	metrics := make([]ProtoMetric, len(reqs))
 
 	for i, req := range reqs {
@@ -124,7 +135,9 @@ func executeRequests(conn net.Conn, reqs []*pb.CalcRequest) ([]ProtoMetric, erro
 			return nil, fmt.Errorf("unmarshal error on seq %d: %w", req.GetSeq(), err)
 		}
 
-		logSuccess(req.GetSeq(), &resp, rtt, len(payload), len(respBytes))
+		if !silent {
+			logSuccess(req.GetSeq(), &resp, rtt, len(payload), len(respBytes))
+		}
 		metrics[i] = ProtoMetric{
 			Seq:      req.GetSeq(),
 			RTT:      rtt,
@@ -184,13 +197,16 @@ func calculateMetrics(items []ProtoMetric, totalDuration time.Duration) ClientMe
 	}
 
 	return ClientMetrics{
-		TotalTime:   totalDuration,
-		Delivered:   count,
+		TotalTime:       totalDuration,
+		TotalDurationMs: float64(totalDuration.Microseconds()) / 1000.0,
+		Delivered:       count,
 		Lost:        0,
-		AvgRTT:      avgRTT,
-		MaxRTT:      maxRTT,
-		AvgSentSize: avgSent,
-		AvgRecvSize: avgRecv,
+		AvgRTT:          avgRTT,
+		AvgRTTMs:        float64(avgRTT.Microseconds()) / 1000.0,
+		MaxRTT:          maxRTT,
+		MaxRTTMs:        float64(maxRTT.Microseconds()) / 1000.0,
+		AvgSentSize:     avgSent,
+		AvgRecvSize:     avgRecv,
 	}
 }
 
@@ -204,4 +220,9 @@ func printSummary(m ClientMetrics) {
 	fmt.Printf("Tamanho médio da req     : %.1f bytes (payload protobuf)\n", m.AvgSentSize)
 	fmt.Printf("Tamanho médio da resp    : %.1f bytes (payload protobuf)\n", m.AvgRecvSize)
 	fmt.Println("===================================================")
+}
+
+func printJSONSummary(m ClientMetrics) {
+	enc := json.NewEncoder(os.Stdout)
+	_ = enc.Encode(m)
 }

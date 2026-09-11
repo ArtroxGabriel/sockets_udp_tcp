@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -29,18 +30,22 @@ type RequestMetric struct {
 
 // ClientMetrics aggregates summary statistics.
 type ClientMetrics struct {
-	TotalTime   time.Duration
-	Delivered   int
-	Lost        int
-	AvgRTT      time.Duration
-	MaxRTT      time.Duration
-	AvgSentSize float64
-	AvgRecvSize float64
+	TotalTime       time.Duration `json:"-"`
+	TotalDurationMs float64       `json:"totalDurationMs"`
+	Delivered       int           `json:"delivered"`
+	Lost            int           `json:"lost"`
+	AvgRTT          time.Duration `json:"-"`
+	AvgRTTMs        float64       `json:"avgRttMs"`
+	MaxRTT          time.Duration `json:"-"`
+	MaxRTTMs        float64       `json:"maxRttMs"`
+	AvgSentSize     float64       `json:"avgSentBytes"`
+	AvgRecvSize     float64       `json:"avgRecvBytes"`
 }
 
 func main() {
 	addr := flag.String("addr", defaultServerAddr, "TCP server address (host:port)")
 	n := flag.Int("n", defaultRequestNum, "Number of requests to send")
+	jsonOutput := flag.Bool("json", false, "Output metrics in JSON format")
 	flag.Parse()
 
 	conn, err := net.Dial("tcp", *addr)
@@ -49,18 +54,24 @@ func main() {
 	}
 	defer conn.Close()
 
-	log.Printf("CalcClientTCP connected to %s | N=%d", *addr, *n)
+	if !*jsonOutput {
+		log.Printf("CalcClientTCP connected to %s | N=%d", *addr, *n)
+	}
 	requests := generateTestRequests(*n)
 
 	startTime := time.Now()
-	metrics, err := executeRequests(conn, requests)
+	metrics, err := executeRequests(conn, requests, *jsonOutput)
 	if err != nil {
 		log.Fatalf("error executing requests: %v", err)
 	}
 	totalDuration := time.Since(startTime)
 
 	summary := calculateMetrics(metrics, totalDuration)
-	printSummary(summary)
+	if *jsonOutput {
+		printJSONSummary(summary)
+	} else {
+		printSummary(summary)
+	}
 
 	if summary.Lost > 0 {
 		os.Exit(1)
@@ -83,7 +94,7 @@ func generateTestRequests(n int) []protocol.Request {
 	return requests
 }
 
-func executeRequests(conn net.Conn, reqs []protocol.Request) ([]RequestMetric, error) {
+func executeRequests(conn net.Conn, reqs []protocol.Request, silent bool) ([]RequestMetric, error) {
 	reader := bufio.NewReader(conn)
 	metrics := make([]RequestMetric, len(reqs))
 
@@ -102,8 +113,10 @@ func executeRequests(conn net.Conn, reqs []protocol.Request) ([]RequestMetric, e
 		rtt := time.Since(start)
 
 		cleanResp := strings.TrimSpace(respLine)
-		log.Printf("[SUCCESS] seq=%d -> %s (RTT: %v, Wire: %dB/%dB)",
-			req.Seq, cleanResp, rtt, len(line), len(respLine))
+		if !silent {
+			log.Printf("[SUCCESS] seq=%d -> %s (RTT: %v, Wire: %dB/%dB)",
+				req.Seq, cleanResp, rtt, len(line), len(respLine))
+		}
 
 		metrics[i] = RequestMetric{
 			Seq:      req.Seq,
@@ -139,13 +152,16 @@ func calculateMetrics(items []RequestMetric, totalDuration time.Duration) Client
 	}
 
 	return ClientMetrics{
-		TotalTime:   totalDuration,
-		Delivered:   count,
-		Lost:        0,
-		AvgRTT:      avgRTT,
-		MaxRTT:      maxRTT,
-		AvgSentSize: avgSent,
-		AvgRecvSize: avgRecv,
+		TotalTime:       totalDuration,
+		TotalDurationMs: float64(totalDuration.Microseconds()) / 1000.0,
+		Delivered:       count,
+		Lost:            0,
+		AvgRTT:          avgRTT,
+		AvgRTTMs:        float64(avgRTT.Microseconds()) / 1000.0,
+		MaxRTT:          maxRTT,
+		MaxRTTMs:        float64(maxRTT.Microseconds()) / 1000.0,
+		AvgSentSize:     avgSent,
+		AvgRecvSize:     avgRecv,
 	}
 }
 
@@ -159,4 +175,9 @@ func printSummary(m ClientMetrics) {
 	fmt.Printf("Tamanho médio da req     : %.1f bytes\n", m.AvgSentSize)
 	fmt.Printf("Tamanho médio da resp    : %.1f bytes\n", m.AvgRecvSize)
 	fmt.Println("===============================================")
+}
+
+func printJSONSummary(m ClientMetrics) {
+	enc := json.NewEncoder(os.Stdout)
+	_ = enc.Encode(m)
 }
