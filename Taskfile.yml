@@ -2,9 +2,10 @@ version: '3'
 
 tasks:
   default:
-    desc: Run all tests
+    desc: Show help and list available commands
+    silent: true
     cmds:
-      - task: test
+      - task --list
 
   test:
     desc: Run all Go unit tests with coverage
