@@ -1,5 +1,11 @@
 version: "3"
 
+vars:
+  DOCKERFILE: docker/Dockerfile
+  COMPOSE_FILE: docker/docker-compose.yml
+  COMPOSE_EXP_FILE: docker/docker-compose.experiment.yml
+  IMAGE_NAME: sockets-calc:latest
+
 tasks:
   default:
     desc: Show help and list available commands
@@ -84,3 +90,44 @@ tasks:
     deps: [build]
     cmds:
       - go run ./cmd/experiment
+
+  docker:build:
+    desc: Build the Docker image
+    cmds:
+      - docker build -f {{.DOCKERFILE}} -t {{.IMAGE_NAME}} .
+
+  docker:up:
+    desc: Start all calculator servers in background (UDP, TCP, Protobuf)
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} up -d server-udp server-tcp server-proto
+
+  docker:down:
+    desc: Stop and remove all Docker containers and network
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} down
+
+  docker:logs:
+    desc: Follow logs from running server containers
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} logs -f
+
+  docker:run:client:udp:
+    desc: Run UDP client against containerized server-udp
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} run --rm client-udp
+
+  docker:run:client:tcp:
+    desc: Run TCP client against containerized server-tcp
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} run --rm client-tcp
+
+  docker:run:client:proto:
+    desc: Run Protobuf client against containerized server-proto
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} run --rm client-proto
+
+  docker:experiment:
+    desc: Run the automated comparative experiments suite inside Docker (multi-container with netem)
+    cmds:
+      - docker compose -f {{.COMPOSE_EXP_FILE}} up --abort-on-container-exit --exit-code-from experiment
+      - docker compose -f {{.COMPOSE_EXP_FILE}} down

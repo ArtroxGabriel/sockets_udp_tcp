@@ -10,6 +10,11 @@
 ├── Taskfile.yml                  # Orquestração de builds, testes e execuções
 ├── mise.toml                     # Gerenciamento de ferramentas (go, bun, task, protoc, protoc-gen-go)
 ├── go.mod                        # Módulo Go e dependências
+├── docker/                       # Arquivos de conteinerização
+│   ├── Dockerfile                # Imagem Alpine multi-stage otimizada com iproute2
+│   ├── docker-compose.yml        # Orquestração dos servidores e clientes interativos
+│   ├── docker-compose.experiment.yml # Orquestração multi-container com simulação netem (0%, 10%, 30%)
+│   └── entrypoint.sh             # Entrypoint com suporte a tc netem
 ├── proto/
 │   └── calc.proto                # Esquema Protocol Buffers (Parte 4)
 ├── pkg/
@@ -18,7 +23,7 @@
 │   │   └── calc_test.go
 │   ├── protocol/                 # Parsing textual e framing de stream binário com testes
 │   │   ├── text.go
-│   │   ├── text_test.go
+│   │   └── text_test.go
 │   │   ├── framing.go
 │   │   └── framing_test.go
 │   └── pb/calc/                  # Código Go gerado pelo protoc
@@ -50,7 +55,16 @@
 
 ## Como executar
 
-Todas as tarefas são gerenciadas pelo **Taskfile**. Para listar os comandos disponíveis, use `task --list`.
+Todas as tarefas são orquestradas via **Taskfile**. Para listar todos os comandos disponíveis:
+
+```bash
+task
+# ou: task --list
+```
+
+> [!TIP]
+> **Bizu para quem não tem a ferramenta `task` instalada:**
+> O arquivo `Taskfile.yml` funciona como um roteiro simples e transparente. Caso não tenha o `task` instalado em seu sistema, basta abrir o [Taskfile.yml](./Taskfile.yml) e executar diretamente no terminal os comandos descritos no campo `cmds` de cada tarefa (por exemplo, `go run ./cmd/server_udp` no lugar de `task run:server:udp`, ou `docker compose -f docker/docker-compose.yml up -d` no lugar de `task docker:up`).
 
 ### 1. Compilação e Testes
 
@@ -65,31 +79,43 @@ task build
 ### 2. Execução manual das partes (Servidor e Cliente)
 
 #### Parte 1: UDP com Perda Simulada e Retransmissão
+
 Em um terminal, inicie o servidor (parâmetro `--loss-rate` aceita valores de `0.0` a `1.0`):
+
 ```bash
 task run:server:udp -- --port 8081 --loss-rate 0.3
 ```
+
 Em outro terminal, execute o cliente:
+
 ```bash
 task run:client:udp -- --addr 127.0.0.1:8081 --n 20 --timeout 500ms --max-attempts 5
 ```
 
 #### Parte 2: TCP Concorrente
+
 Em um terminal:
+
 ```bash
 task run:server:tcp -- --port 8082
 ```
+
 Em outro terminal:
+
 ```bash
 task run:client:tcp -- --addr 127.0.0.1:8082 --n 20
 ```
 
 #### Parte 4: Protocol Buffers sobre TCP
+
 Em um terminal:
+
 ```bash
 task run:server:proto -- --port 8083
 ```
+
 Em outro terminal:
+
 ```bash
 task run:client:proto -- --addr 127.0.0.1:8083 --n 20
 ```
@@ -97,6 +123,7 @@ task run:client:proto -- --addr 127.0.0.1:8083 --n 20
 ### 3. Execução dos Clientes em Bun (TypeScript)
 
 Para testar a interoperabilidade entre diferentes linguagens:
+
 ```bash
 task run:bun:udp     # Cliente Bun UDP contra CalcServerUDP
 task run:bun:tcp     # Cliente Bun TCP contra CalcServerTCP
@@ -106,12 +133,65 @@ task run:bun:proto   # Cliente Bun Protobuf contra CalcServerProto
 ### 4. Experimento Automatizado (Partes 3 e 4)
 
 Executa toda a bateria de testes requerida (UDP 0%, 10%, 30%, TCP Textual e TCP Protobuf), mede os tempos, perdas, retransmissões e tamanhos de mensagem, gerando a tabela comparativa:
+
 ```bash
 task experiment
 ```
 
 Os resultados detalhados e as respostas às perguntas do trabalho estão disponíveis em:
+
 - [Relatório Comparativo de Experimentos](docs/Relatorio_Experimentos.md)
+
+### 5. Execução em Ambiente Conteinerizado (Docker & Docker Compose)
+
+Toda a infraestrutura pode ser construída e executada em containers isolados via Docker, simulando tanto perda na aplicação (`--loss-rate`) quanto perda de pacotes no kernel via `tc netem` (`iproute2`):
+
+#### A. Construir a imagem Docker
+
+```bash
+task docker:build
+# Sem task: docker build -f docker/Dockerfile -t sockets-calc:latest .
+```
+
+#### B. Subir os servidores em background (UDP, TCP e Protobuf)
+
+```bash
+task docker:up
+# Sem task: docker compose -f docker/docker-compose.yml up -d server-udp server-tcp server-proto
+```
+
+Para acompanhar os logs e mensagens recebidas no terminal dos servidores:
+
+```bash
+task docker:logs
+# Sem task: docker compose -f docker/docker-compose.yml logs -f
+```
+
+#### C. Executar clientes conteinerizados
+
+```bash
+task docker:run:client:udp     # Cliente UDP (com retransmissões na rede do compose)
+task docker:run:client:tcp     # Cliente TCP
+task docker:run:client:proto   # Cliente Protobuf
+```
+
+#### D. Executar a bateria de experimentos dentro do Docker (Multi-Container + netem)
+
+Sobe uma topologia dedicada de 5 containers com servidores independentes (`server-udp-0`, `server-udp-10` com 10% de perda no kernel, `server-udp-30` com 30% de perda no kernel, `server-tcp` e `server-proto`), executa o runner remoto contra a rede virtual e salva o relatório atualizado em `docs/Relatorio_Experimentos.md` via volume montado:
+
+```bash
+task docker:experiment
+# Sem task:
+# docker compose -f docker/docker-compose.experiment.yml up --abort-on-container-exit --exit-code-from experiment
+# docker compose -f docker/docker-compose.experiment.yml down
+```
+
+#### E. Parar e limpar os containers
+
+```bash
+task docker:down
+# Sem task: docker compose -f docker/docker-compose.yml down
+```
 
 ## Descrição da atividade
 

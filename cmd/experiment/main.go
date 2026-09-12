@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -25,6 +26,15 @@ type ExperimentResult struct {
 	AvgRecvBytes    float64 `json:"avgRecvBytes"`
 }
 
+type ExperimentOptions struct {
+	IsRemote  bool
+	UDP0Addr  string
+	UDP10Addr string
+	UDP30Addr string
+	TCPAddr   string
+	ProtoAddr string
+}
+
 type ScenarioConfig struct {
 	Name        string
 	Protocol    string
@@ -34,12 +44,32 @@ type ScenarioConfig struct {
 	ClientArgs  []string
 	Port        int
 	IsUDP       bool
+	IsRemote    bool
+	RemoteAddr  string
+}
+
+func parseOptions() ExperimentOptions {
+	var opts ExperimentOptions
+	flag.BoolVar(&opts.IsRemote, "remote", false, "Run against external pre-started servers (e.g. in Docker Compose)")
+	flag.StringVar(&opts.UDP0Addr, "udp0-addr", "server-udp-0:8081", "Address of UDP server (0% loss)")
+	flag.StringVar(&opts.UDP10Addr, "udp10-addr", "server-udp-10:8081", "Address of UDP server (10% loss)")
+	flag.StringVar(&opts.UDP30Addr, "udp30-addr", "server-udp-30:8081", "Address of UDP server (30% loss)")
+	flag.StringVar(&opts.TCPAddr, "tcp-addr", "server-tcp:8082", "Address of TCP textual server")
+	flag.StringVar(&opts.ProtoAddr, "proto-addr", "server-proto:8083", "Address of TCP protobuf server")
+	flag.Parse()
+	return opts
 }
 
 func main() {
+	opts := parseOptions()
 	log.Println("=== INICIANDO EXPERIMENTO COMPARATIVO (UDP vs. TCP vs. PROTOBUF) ===")
+	if opts.IsRemote {
+		log.Println("Modo: Remoto (conectando a containers dedicados na rede Docker)")
+	} else {
+		log.Println("Modo: Local auto-contido (orquestrando subprocessos locais)")
+	}
 
-	scenarios := getScenarios()
+	scenarios := getScenarios(opts)
 	var results []ExperimentResult
 
 	for _, sc := range scenarios {
@@ -62,14 +92,75 @@ func main() {
 	}
 }
 
-func getScenarios() []ScenarioConfig {
+func resolveBinary(name string) string {
+	localPath := filepath.Join(".", "bin", name)
+	if _, err := os.Stat(localPath); err == nil {
+		return localPath
+	}
+	if path, err := exec.LookPath(name); err == nil {
+		return path
+	}
+	return name
+}
+
+func getScenarios(opts ExperimentOptions) []ScenarioConfig {
+	if opts.IsRemote {
+		return []ScenarioConfig{
+			{
+				Name:       "UDP (0% perda)",
+				Protocol:   "UDP",
+				ClientCmd:  resolveBinary("client_udp"),
+				ClientArgs: []string{"--addr", opts.UDP0Addr, "--n", "20", "--json"},
+				IsUDP:      true,
+				IsRemote:   true,
+				RemoteAddr: opts.UDP0Addr,
+			},
+			{
+				Name:       "UDP (10% perda)",
+				Protocol:   "UDP",
+				ClientCmd:  resolveBinary("client_udp"),
+				ClientArgs: []string{"--addr", opts.UDP10Addr, "--n", "20", "--json"},
+				IsUDP:      true,
+				IsRemote:   true,
+				RemoteAddr: opts.UDP10Addr,
+			},
+			{
+				Name:       "UDP (30% perda)",
+				Protocol:   "UDP",
+				ClientCmd:  resolveBinary("client_udp"),
+				ClientArgs: []string{"--addr", opts.UDP30Addr, "--n", "20", "--json"},
+				IsUDP:      true,
+				IsRemote:   true,
+				RemoteAddr: opts.UDP30Addr,
+			},
+			{
+				Name:       "TCP Textual",
+				Protocol:   "TCP",
+				ClientCmd:  resolveBinary("client_tcp"),
+				ClientArgs: []string{"--addr", opts.TCPAddr, "--n", "20", "--json"},
+				IsUDP:      false,
+				IsRemote:   true,
+				RemoteAddr: opts.TCPAddr,
+			},
+			{
+				Name:       "TCP Protobuf",
+				Protocol:   "Protobuf (TCP)",
+				ClientCmd:  resolveBinary("client_proto"),
+				ClientArgs: []string{"--addr", opts.ProtoAddr, "--n", "20", "--json"},
+				IsUDP:      false,
+				IsRemote:   true,
+				RemoteAddr: opts.ProtoAddr,
+			},
+		}
+	}
+
 	return []ScenarioConfig{
 		{
 			Name:       "UDP (0% perda)",
 			Protocol:   "UDP",
-			ServerCmd:  "./bin/server_udp",
+			ServerCmd:  resolveBinary("server_udp"),
 			ServerArgs: []string{"--port", "9081", "--loss-rate", "0.0"},
-			ClientCmd:  "./bin/client_udp",
+			ClientCmd:  resolveBinary("client_udp"),
 			ClientArgs: []string{"--addr", "127.0.0.1:9081", "--n", "20", "--json"},
 			Port:       9081,
 			IsUDP:      true,
@@ -77,9 +168,9 @@ func getScenarios() []ScenarioConfig {
 		{
 			Name:       "UDP (10% perda)",
 			Protocol:   "UDP",
-			ServerCmd:  "./bin/server_udp",
+			ServerCmd:  resolveBinary("server_udp"),
 			ServerArgs: []string{"--port", "9082", "--loss-rate", "0.1"},
-			ClientCmd:  "./bin/client_udp",
+			ClientCmd:  resolveBinary("client_udp"),
 			ClientArgs: []string{"--addr", "127.0.0.1:9082", "--n", "20", "--json"},
 			Port:       9082,
 			IsUDP:      true,
@@ -87,9 +178,9 @@ func getScenarios() []ScenarioConfig {
 		{
 			Name:       "UDP (30% perda)",
 			Protocol:   "UDP",
-			ServerCmd:  "./bin/server_udp",
+			ServerCmd:  resolveBinary("server_udp"),
 			ServerArgs: []string{"--port", "9083", "--loss-rate", "0.3"},
-			ClientCmd:  "./bin/client_udp",
+			ClientCmd:  resolveBinary("client_udp"),
 			ClientArgs: []string{"--addr", "127.0.0.1:9083", "--n", "20", "--json"},
 			Port:       9083,
 			IsUDP:      true,
@@ -97,9 +188,9 @@ func getScenarios() []ScenarioConfig {
 		{
 			Name:       "TCP Textual",
 			Protocol:   "TCP",
-			ServerCmd:  "./bin/server_tcp",
+			ServerCmd:  resolveBinary("server_tcp"),
 			ServerArgs: []string{"--port", "9084"},
-			ClientCmd:  "./bin/client_tcp",
+			ClientCmd:  resolveBinary("client_tcp"),
 			ClientArgs: []string{"--addr", "127.0.0.1:9084", "--n", "20", "--json"},
 			Port:       9084,
 			IsUDP:      false,
@@ -107,9 +198,9 @@ func getScenarios() []ScenarioConfig {
 		{
 			Name:       "TCP Protobuf",
 			Protocol:   "Protobuf (TCP)",
-			ServerCmd:  "./bin/server_proto",
+			ServerCmd:  resolveBinary("server_proto"),
 			ServerArgs: []string{"--port", "9085"},
-			ClientCmd:  "./bin/client_proto",
+			ClientCmd:  resolveBinary("client_proto"),
 			ClientArgs: []string{"--addr", "127.0.0.1:9085", "--n", "20", "--json"},
 			Port:       9085,
 			IsUDP:      false,
@@ -118,16 +209,20 @@ func getScenarios() []ScenarioConfig {
 }
 
 func runScenario(sc ScenarioConfig) (ExperimentResult, error) {
-	serverCmd := exec.Command(sc.ServerCmd, sc.ServerArgs...)
-	if err := serverCmd.Start(); err != nil {
-		return ExperimentResult{}, fmt.Errorf("erro ao iniciar servidor %s: %w", sc.ServerCmd, err)
-	}
-	defer func() {
-		_ = serverCmd.Process.Kill()
-		_ = serverCmd.Wait()
-	}()
+	if sc.IsRemote {
+		waitForRemote(sc.RemoteAddr, sc.IsUDP)
+	} else {
+		serverCmd := exec.Command(sc.ServerCmd, sc.ServerArgs...)
+		if err := serverCmd.Start(); err != nil {
+			return ExperimentResult{}, fmt.Errorf("erro ao iniciar servidor %s: %w", sc.ServerCmd, err)
+		}
+		defer func() {
+			_ = serverCmd.Process.Kill()
+			_ = serverCmd.Wait()
+		}()
 
-	waitForServer(sc.Port, sc.IsUDP)
+		waitForServer(sc.Port, sc.IsUDP)
+	}
 
 	clientCmd := exec.Command(sc.ClientCmd, sc.ClientArgs...)
 	var stdout, stderr bytes.Buffer
@@ -144,6 +239,21 @@ func runScenario(sc ScenarioConfig) (ExperimentResult, error) {
 	res.Scenario = sc.Name
 	res.Protocol = sc.Protocol
 	return res, nil
+}
+
+func waitForRemote(addr string, isUDP bool) {
+	if isUDP {
+		time.Sleep(100 * time.Millisecond)
+		return
+	}
+	for i := 0; i < 30; i++ {
+		conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func waitForServer(port int, isUDP bool) {

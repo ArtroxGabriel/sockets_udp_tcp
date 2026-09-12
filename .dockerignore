@@ -6,4 +6,6 @@ bun/bun.lockb
 /client_*
 /experiment
 
-*.pdf
+mise.toml
+Taskfile.yaml
+docs/

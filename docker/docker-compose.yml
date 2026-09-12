@@ -1,0 +1,85 @@
+services:
+  # Servidor UDP com simulação de perda no nível de rede via tc netem
+  server-udp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: sockets-calc:latest
+    container_name: calc-server-udp
+    command: ["server_udp", "--port", "8081"]
+    ports:
+      - "8081:8081/udp"
+    networks:
+      - calc-net
+    cap_add:
+      - NET_ADMIN
+    environment:
+      # Simulação de perda no kernel (iproute2 / netem): ex. 10% ou 30%
+      - NETEM_LOSS=${NETEM_LOSS:-10%}
+
+  # Servidor TCP concorrente
+  server-tcp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: sockets-calc:latest
+    container_name: calc-server-tcp
+    command: ["server_tcp", "--port", "8082"]
+    ports:
+      - "8082:8082"
+    networks:
+      - calc-net
+
+  # Servidor Protobuf sobre TCP
+  server-proto:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: sockets-calc:latest
+    container_name: calc-server-proto
+    command: ["server_proto", "--port", "8083"]
+    ports:
+      - "8083:8083"
+    networks:
+      - calc-net
+
+  # Cliente UDP executado no container
+  client-udp:
+    image: sockets-calc:latest
+    container_name: calc-client-udp
+    command: ["client_udp", "--addr", "server-udp:8081", "--n", "20", "--timeout", "500ms", "--max-attempts", "5"]
+    networks:
+      - calc-net
+    depends_on:
+      - server-udp
+    profiles:
+      - clients
+
+  # Cliente TCP executado no container
+  client-tcp:
+    image: sockets-calc:latest
+    container_name: calc-client-tcp
+    command: ["client_tcp", "--addr", "server-tcp:8082", "--n", "20"]
+    networks:
+      - calc-net
+    depends_on:
+      - server-tcp
+    profiles:
+      - clients
+
+  # Cliente Protobuf executado no container
+  client-proto:
+    image: sockets-calc:latest
+    container_name: calc-client-proto
+    command: ["client_proto", "--addr", "server-proto:8083", "--n", "20"]
+    networks:
+      - calc-net
+    depends_on:
+      - server-proto
+    profiles:
+      - clients
+
+
+networks:
+  calc-net:
+    driver: bridge

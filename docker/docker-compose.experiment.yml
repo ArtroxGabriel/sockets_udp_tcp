@@ -1,0 +1,82 @@
+services:
+  # 1. UDP Server sem perda (0%)
+  server-udp-0:
+    image: sockets-calc:latest
+    container_name: calc-exp-udp-0
+    command: ["server_udp", "--port", "8081"]
+    networks:
+      - calc-exp-net
+
+  # 2. UDP Server com 10% de perda simulada no kernel via netem
+  server-udp-10:
+    image: sockets-calc:latest
+    container_name: calc-exp-udp-10
+    command: ["server_udp", "--port", "8081"]
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - NETEM_LOSS=10%
+    networks:
+      - calc-exp-net
+
+  # 3. UDP Server com 30% de perda simulada no kernel via netem
+  server-udp-30:
+    image: sockets-calc:latest
+    container_name: calc-exp-udp-30
+    command: ["server_udp", "--port", "8081"]
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - NETEM_LOSS=30%
+    networks:
+      - calc-exp-net
+
+  # 4. TCP Server Textual Concorrente
+  server-tcp:
+    image: sockets-calc:latest
+    container_name: calc-exp-tcp
+    command: ["server_tcp", "--port", "8082"]
+    networks:
+      - calc-exp-net
+
+  # 5. TCP Server Protobuf Concorrente
+  server-proto:
+    image: sockets-calc:latest
+    container_name: calc-exp-proto
+    command: ["server_proto", "--port", "8083"]
+    networks:
+      - calc-exp-net
+
+  # Orquestrador do Experimento conectando através da rede do Docker
+  experiment:
+    image: sockets-calc:latest
+    container_name: calc-exp-runner
+    command:
+      [
+        "experiment",
+        "--remote",
+        "--udp0-addr",
+        "server-udp-0:8081",
+        "--udp10-addr",
+        "server-udp-10:8081",
+        "--udp30-addr",
+        "server-udp-30:8081",
+        "--tcp-addr",
+        "server-tcp:8082",
+        "--proto-addr",
+        "server-proto:8083"
+      ]
+    volumes:
+      - ../docs:/app/docs
+    depends_on:
+      - server-udp-0
+      - server-udp-10
+      - server-udp-30
+      - server-tcp
+      - server-proto
+    networks:
+      - calc-exp-net
+
+networks:
+  calc-exp-net:
+    driver: bridge
