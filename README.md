@@ -3,6 +3,30 @@
 - **aluno**: Antonio Gabriel
 - **matricula**: 539628
 
+<details>
+<summary><b>Sumário</b></summary>
+
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Tecnologias Utilizadas](#tecnologias-utilizadas)
+- [Como executar](#como-executar)
+  - [1. Compilação e Testes](#1-compilação-e-testes)
+  - [2. Execução manual das partes (Servidor e Cliente)](#2-execução-manual-das-partes-servidor-e-cliente)
+    - [Parte 1: UDP com Perda Simulada e Retransmissão](#parte-1-udp-com-perda-simulada-e-retransmissão)
+    - [Parte 2: TCP Concorrente](#parte-2-tcp-concorrente)
+    - [Parte 4: Protocol Buffers sobre TCP](#parte-4-protocol-buffers-sobre-tcp)
+  - [3. Execução dos Clientes em Bun (TypeScript)](#3-execução-dos-clientes-em-bun-typescript)
+  - [4. Experimento Automatizado (Partes 3 e 4)](#4-experimento-automatizado-partes-3-e-4)
+  - [5. Execução em Ambiente Conteinerizado (Docker & Docker Compose)](#5-execução-em-ambiente-conteinerizado-docker--docker-compose)
+    - [A. Construir a imagem Docker](#a-construir-a-imagem-docker)
+    - [B. Subir os servidores em background (UDP, TCP e Protobuf)](#b-subir-os-servidores-em-background-udp-tcp-e-protobuf)
+    - [C. Executar clientes conteinerizados](#c-executar-clientes-conteinerizados)
+    - [D. Executar a bateria de experimentos dentro do Docker (Multi-Container + netem)](#d-executar-a-bateria-de-experimentos-dentro-do-docker-multi-container--netem)
+    - [E. Parar e limpar os containers](#e-parar-e-limpar-os-containers)
+- [Descrição da atividade](#descrição-da-atividade)
+
+</details>
+
+
 ## Estrutura do projeto
 
 ```
